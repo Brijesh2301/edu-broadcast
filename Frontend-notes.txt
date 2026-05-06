@@ -1,0 +1,290 @@
+===========================================
+EDUBROADCAST — FRONTEND NOTES
+===========================================
+
+This document explains the architecture, conventions, and key engineering
+decisions in the EduBroadcast frontend so a new team member can become
+productive quickly.
+
+-------------------------------------------
+1. PROJECT STRUCTURE
+-------------------------------------------
+
+The src/ tree is organized by responsibility, not by feature, so any
+contributor can find the right file by asking "what kind of file is this?":
+
+  src/components/       UI components, split by scope:
+    common/             Reusable across the app (StatusBadge, ScheduleBadge,
+                        EmptyState, ErrorState, FileUploadZone, Pagination,
+                        SkeletonCard/Table, ImagePreview, ThemeToggle,
+                        PageHeader, ConfirmModal, Button, Input, Textarea,
+                        Badge, LoadingSpinner, ErrorBoundary, ProtectedRoute,
+                        StatCard).
+    teacher/            Teacher-only UI (ContentCard, MyContentTable,
+                        UploadFormFields).
+    principal/          Principal-only UI (ApprovalCard, RejectionModal,
+                        ContentFilters, PendingRowActions).
+    ui/                 shadcn-style primitives (card, table, dialog,
+                        alert-dialog, select, skeleton).
+
+  src/pages/            Route-level page components, organized by role:
+    auth/LoginPage.jsx
+    teacher/            TeacherDashboard, UploadContent, MyContent
+    principal/          PrincipalDashboard, PendingApprovals, AllContent
+    public/LivePage.jsx The unauthenticated /live/:teacherId route.
+
+  src/layouts/          Wrapper components providing sidebar + navbar chrome:
+                        AuthLayout, TeacherLayout, PrincipalLayout. Both
+                        role layouts share DashboardShell.jsx for DRY chrome.
+
+  src/services/         The ONLY layer that calls the API (mock or real):
+                        auth.service.js, content.service.js,
+                        approval.service.js. Components and hooks never
+                        call mockApi or fetch/axios directly.
+
+  src/hooks/            Custom hooks encapsulating TanStack Query and small
+                        UI utilities: useAuth (re-export from AuthContext),
+                        useTheme (re-export from ThemeContext),
+                        useContent (5 query/mutation hooks),
+                        useApproval (2 mutation hooks),
+                        useDebounce.
+
+  src/context/          React Context providers — AuthContext, ThemeContext.
+                        Each exports its own hook (useAuth, useTheme).
+
+  src/mocks/            Mock data (mockData.js, 20 content items + 3 users)
+                        and the simulated API (mockApi.js, async with 600ms
+                        delay, mutable in-memory store).
+
+  src/utils/            Pure utilities and shared values:
+                        constants.js (SUBJECTS, STATUS, FILE_RULES,
+                        QUERY_KEYS, ITEMS_PER_PAGE),
+                        helpers.js (formatDate, getScheduleStatus,
+                        validateFile, formatFileSize, getInitials,
+                        getSubjectColor, cn re-export),
+                        axiosInstance.js (preconfigured axios with
+                        interceptors), queryClient.js, queryKeys.js
+                        (re-export of QUERY_KEYS for path consistency).
+
+  src/store/            Redux Toolkit slice for app-wide UI state
+                        (sidebarOpen, contentFilter, searchQuery).
+
+  src/lib/utils.js      cn() class-merging utility (clsx + tailwind-merge).
+
+-------------------------------------------
+2. AUTHENTICATION FLOW
+-------------------------------------------
+
+Step-by-step what happens on login and on subsequent page loads:
+
+  1. User fills email + password on LoginPage.
+  2. The form submits → calls login(credentials) from useAuth().
+  3. useAuth() reads from AuthContext.
+  4. AuthContext.login() calls authService.login(credentials).
+  5. authService calls mockApi.login(credentials).
+  6. mockApi validates against MOCK_USERS, returns { user, token } or
+     throws "Invalid credentials".
+  7. AuthContext stores user + token in state.
+  8. Also persists to localStorage under AUTH_KEY (JSON stringified).
+  9. isAuthenticated flips to true.
+  10. LoginPage detects success via useEffect on user/isAuthenticated and
+      navigates by user.role:
+        principal → /principal/dashboard
+        teacher   → /teacher/dashboard
+  11. On page refresh: AuthContext reads localStorage on mount, restores
+      state, sets isInitializing → false.
+  12. axiosInstance interceptor reads the token from localStorage and
+      attaches it to the Authorization header on every request. On a 401
+      response, it removes AUTH_KEY (logs the user out client-side).
+
+  Logout: AuthContext.logout() clears localStorage AUTH_KEY and resets
+  state. The user is bounced to /login by ProtectedRoute on the next
+  authenticated route.
+
+-------------------------------------------
+3. ROLE-BASED ROUTING
+-------------------------------------------
+
+  - ProtectedRoute (src/components/common/ProtectedRoute.jsx) wraps every
+    authenticated route. It reads isAuthenticated, user.role, and
+    isInitializing from useAuth().
+
+  - While isInitializing is true the route shows a fullscreen spinner.
+    This prevents the flash of /login on a hard refresh — without it the
+    UI would briefly redirect before localStorage is read.
+
+  - If !isAuthenticated → <Navigate to="/login" replace />.
+
+  - If user.role is not in allowedRoles → redirect to that user's own
+    dashboard (a teacher manually typing /principal/... gets sent back to
+    /teacher/dashboard, and vice versa).
+
+  - The /live/:teacherId route is completely public — no ProtectedRoute
+    wrapper. Anyone can view the broadcast.
+
+-------------------------------------------
+4. API INTEGRATION APPROACH
+-------------------------------------------
+
+A strict three-layer architecture:
+
+  Component / Hook  →  Service File  →  mockApi (or real API)
+
+Rules enforced in this codebase:
+  - Components and pages NEVER import from mocks/ and NEVER call
+    fetch/axios directly.
+  - Custom hooks (useContent, useApproval, useAuth) own all server-state
+    concerns — caching, refetching, invalidation, polling.
+  - TanStack Query calls service-file functions as queryFn / mutationFn.
+  - Service files (auth.service, content.service, approval.service) are
+    the ONLY files in the codebase that import from mocks/mockApi.js.
+
+To swap the mock for a real backend:
+  Touch ONLY the three files in src/services/. Replace each
+  mockApi.functionName(...) call with the matching axiosInstance call.
+
+  Example:
+    // before
+    getAll: () => mockApi.getContents(),
+    // after
+    getAll: () => axiosInstance.get('/contents').then(r => r.data),
+
+  Nothing else in the codebase changes — hooks, components, contexts,
+  layouts, and pages are all unaware of the data source.
+
+-------------------------------------------
+5. STATE MANAGEMENT
+-------------------------------------------
+
+We use three distinct layers, each for the kind of state it's best at:
+
+A. React Context API (cross-cutting global concerns):
+   - AuthContext: user, token, isAuthenticated, isLoading, isInitializing,
+     error, login(), logout(), clearError(). Persisted to localStorage,
+     read on mount.
+   - ThemeContext: theme ('light'|'dark'), toggleTheme(), setTheme().
+     Persisted to localStorage, applies the 'dark' class to
+     document.documentElement.
+
+   Why not Redux for these? Auth and theme are read-many / written-rarely
+   and don't benefit from time-travel debugging or middleware.
+
+B. Redux Toolkit (UI state shared across pages):
+   - One slice (src/store/index.js) tracks sidebarOpen, contentFilter,
+     searchQuery. These are pieces of UI state that several pages read
+     or write (e.g. opening the sidebar from the navbar, or remembering
+     the filter when navigating away and back).
+
+C. TanStack Query v5 (ALL server data):
+   - useAllContents, useTeacherContents, useLiveContent (with 30s
+     polling), useUploadContent, useApproveContent, useRejectContent.
+   - Provides automatic caching, background refetch, loading/error
+     state, request deduplication, and easy cache invalidation after
+     mutations (each mutation's onSuccess invalidates the relevant
+     query keys).
+
+D. Local useState (component-private UI state):
+   - selectedFile, fileError, previewUrl in UploadContent
+   - isDragOver in FileUploadZone
+   - rejectionModal (open + contentId) in PrincipalDashboard,
+     PendingApprovals, AllContent
+   - approvingId (per-row spinner) in the same three pages
+   - currentPage, statusFilter (local), searchQuery (local) in AllContent
+   - sidebarOpen + showPreview in various components
+
+Test for picking the right layer:
+   "Does another route care about this value?"
+     yes → Redux or Context
+     no  → useState
+
+-------------------------------------------
+6. OPTIONAL FEATURES — IMPLEMENTATION NOTES
+-------------------------------------------
+
+a) Dark Mode
+   ThemeContext applies / removes the 'dark' class on
+   document.documentElement. Tailwind config has darkMode: 'class' so
+   every dark: variant in the codebase is wired up. Preference is
+   persisted under THEME_KEY in localStorage and restored on mount.
+   ThemeToggle component is included in the navbar of both authenticated
+   layouts and on the public LivePage and AuthLayout.
+
+b) Drag-and-Drop Upload
+   FileUploadZone uses native HTML5 drag events, no external library:
+     onDragEnter / onDragLeave: toggle isDragOver state for visuals.
+     onDragOver: preventDefault to allow drop.
+     onDrop: preventDefault, read e.dataTransfer.files[0], pass to
+             validateFile() from helpers.js. On success, calls
+             onFileSelect(file, null); on failure, onFileSelect(null,
+             error.message).
+
+c) Polling / Auto-refresh
+   useLiveContent passes refetchInterval: 30000 — TanStack Query handles
+   the polling. LivePage tracks dataUpdatedAt from the useQuery result
+   and runs a 1-second setInterval to compute "secondsAgo" for the
+   countdown display. The setInterval resets whenever dataUpdatedAt
+   changes (new fetch lands), so the counter visibly snaps back to 0.
+
+d) Pagination
+   AllContent uses client-side pagination with ITEMS_PER_PAGE = 10.
+   filteredContents computed via useMemo dependent on
+   [allContents, statusFilter, debouncedSearch]. paginatedContents is a
+   slice. currentPage resets to 1 in a useEffect dependent on the
+   filter inputs. The Pagination component shows ellipses for large
+   page counts (1, 2, 3, 4, 5, …, 12 / etc.).
+
+e) Skeleton Loaders
+   SkeletonCard mimics ContentCard. SkeletonTable mimics the table
+   layout with a thumbnail+text first cell and plain blocks elsewhere.
+   Every page renders skeletons while isLoading is true.
+
+f) Protected Routes
+   ProtectedRoute renders <Outlet /> for authorized users. The
+   isInitializing → isAuthenticated → role check order is deliberate
+   to avoid the flash-of-redirect on hard refresh.
+
+g) 17 Reusable Common Components
+   Located in src/components/common/. Every badge, modal, skeleton,
+   empty state, error state, image preview, and file-upload pattern
+   is centralized — no UI logic is duplicated across pages.
+
+-------------------------------------------
+7. ASSUMPTIONS MADE
+-------------------------------------------
+
+- File uploads are read into base64 (FileReader.readAsDataURL) before
+  being stored in the mock. This makes the resulting fileUrl durable
+  across navigation — an object URL would be revoked on unmount and the
+  upload would render as a broken image in MyContent. In production,
+  files would be uploaded to S3 or similar, returning a real URL, and
+  this base64 step would be removed.
+
+- The auth token is a mock string of the shape
+  'mock-jwt-{userId}-{timestamp}'. In production this would be a real
+  JWT issued by the server and validated on every request.
+
+- Approval / rejection actions reflect in the UI via TanStack Query's
+  cache invalidation pattern. The mock store mutates in place, so the
+  next refetch returns the updated list. In production, optimistic
+  updates could be added via setQueryData() in onMutate.
+
+- The live page shows the FIRST active item for a teacher when
+  multiple are simultaneously live. Production would likely add a
+  priority/ordering system, or rotate through them based on
+  rotationDuration.
+
+- Dark mode defaults to 'light'. We deliberately did not wire up
+  prefers-color-scheme detection to keep ThemeContext simple. Adding
+  it is a one-line change in ThemeProvider's mount effect.
+
+- React Hook Form is pinned to v7 because v8 is alpha-only on npm at
+  the time of writing. The hooks API used here (useForm, register,
+  handleSubmit, setValue, watch, formState) is identical between v7
+  and v8.
+
+- Tailwind is pinned to v3 stable because v4 requires the separate
+  @tailwindcss/postcss package and a different config style. The
+  darkMode: 'class' contract used throughout the codebase works
+  identically in v3.
+
+===========================================
