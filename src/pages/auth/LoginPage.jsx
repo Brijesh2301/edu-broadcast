@@ -68,7 +68,7 @@ const LoginPage = () => {
       toast.error(parsed.error.errors[0].message);
       return;
     }
-    try {
+   
       const { user: signedIn } = await login(parsed.data);
       toast.success(`Welcome back, ${signedIn.name.split(' ')[0]}!`);
       const target =
@@ -76,9 +76,7 @@ const LoginPage = () => {
           ? '/principal/dashboard'
           : '/teacher/dashboard';
       navigate(target, { replace: true });
-    } catch (err) {
-      toast.error(err?.message || 'Login failed. Please try again.');
-    }
+    
   };
 
   const fillDemo = (cred) => {
