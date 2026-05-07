@@ -49,7 +49,7 @@ const RejectionModal = ({ isOpen, contentId, onClose, onSuccess }) => {
   }, [isOpen, reset]);
 
   const onValid = async ({ reason }) => {
-    // Final zod check for safety
+    // zod check for safety
     const parsed = rejectionSchema.safeParse({ reason });
     if (!parsed.success) {
       toast.error(parsed.error.errors[0].message);

@@ -86,7 +86,7 @@ export const mockApi = {
 
     contents = [newItem, ...contents];
 
-    persist(contents); // ✅ SAVE TO LOCALSTORAGE
+    persist(contents);
 
     return newItem;
   },
@@ -103,7 +103,7 @@ export const mockApi = {
       rejectionReason: null,
     };
 
-    persist(contents); // ✅ SAVE TO LOCALSTORAGE
+    persist(contents);
 
     return contents[idx];
   },
@@ -120,7 +120,7 @@ export const mockApi = {
       rejectionReason: reason,
     };
 
-    persist(contents); // ✅ SAVE TO LOCALSTORAGE
+    persist(contents); 
 
     return contents[idx];
   },

@@ -89,7 +89,7 @@ const buildContent = (
 };
 
 export const MOCK_CONTENTS = [
-  // ===== APPROVED (9) =====
+  // Approved Content
   buildContent(
     'c1',
     'Introduction to Algebra',
@@ -99,7 +99,7 @@ export const MOCK_CONTENTS = [
     'approved',
     null,
     2,
-    -1, // started 1 hour ago — currently LIVE
+    -1, 
     30,
     'Foundational concepts of algebraic expressions, variables, and equations for beginners.'
   ),

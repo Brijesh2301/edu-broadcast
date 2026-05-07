@@ -36,7 +36,7 @@ const UploadFormFields = ({
         <Input
           id="title"
           placeholder="e.g. Introduction to Algebra"
-          maxLength={120}
+          maxLength={100}
           error={errors.title?.message}
           {...register('title', {
             required: 'Title is required',
@@ -50,9 +50,7 @@ const UploadFormFields = ({
             },
           })}
         />
-        {errors.title && (
-          <p className="mt-1 text-sm text-red-500">{errors.title.message}</p>
-        )}
+      
       </div>
 
       {/* Subject */}
@@ -125,11 +123,7 @@ const UploadFormFields = ({
           error={errors.startTime?.message}
           {...register('startTime', { required: 'Start time is required' })}
         />
-        {errors.startTime && (
-          <p className="mt-1 text-sm text-red-500">
-            {errors.startTime.message}
-          </p>
-        )}
+       
       </div>
 
       {/* End time */}
@@ -147,9 +141,7 @@ const UploadFormFields = ({
           error={errors.endTime?.message}
           {...register('endTime', { required: 'End time is required' })}
         />
-        {errors.endTime && (
-          <p className="mt-1 text-sm text-red-500">{errors.endTime.message}</p>
-        )}
+       
       </div>
 
       {/* Rotation duration */}

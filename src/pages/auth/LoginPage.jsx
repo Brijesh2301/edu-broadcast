@@ -18,23 +18,7 @@ const loginSchema = z.object({
   password: z.string().min(6, 'Password must be at least 6 characters'),
 });
 
-const DEMO_CREDENTIALS = [
-  {
-    role: 'Principal',
-    email: 'principal@school.com',
-    password: 'password123',
-  },
-  {
-    role: 'Teacher 1',
-    email: 'teacher1@school.com',
-    password: 'password123',
-  },
-  {
-    role: 'Teacher 2',
-    email: 'teacher2@school.com',
-    password: 'password123',
-  },
-];
+
 
 const validateField = (name, value) => {
   const result = loginSchema.shape[name].safeParse(value);
@@ -143,11 +127,7 @@ const LoginPage = () => {
                 validate: (v) => validateField('email', v) || true,
               })}
             />
-            {errors.email && (
-              <p className="mt-1 text-sm text-red-500">
-                {errors.email.message}
-              </p>
-            )}
+         
           </div>
 
           <div>
@@ -184,11 +164,7 @@ const LoginPage = () => {
                 validate: (v) => validateField('password', v) || true,
               })}
             />
-            {errors.password && (
-              <p className="mt-1 text-sm text-red-500">
-                {errors.password.message}
-              </p>
-            )}
+         
           </div>
 
           <Button
@@ -209,48 +185,6 @@ const LoginPage = () => {
         </form>
       </Card>
 
-      {/* Demo credentials box */}
-      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <Info className="h-4 w-4 text-blue-600 dark:text-blue-300" />
-          <h3 className="text-sm font-semibold text-blue-800 dark:text-blue-300">
-            Demo Credentials
-          </h3>
-        </div>
-        <p className="text-xs text-blue-700/80 dark:text-blue-300/80 mb-2">
-          Click a row to autofill the form.
-        </p>
-        <div className="overflow-hidden rounded-md border border-blue-200 dark:border-blue-800">
-          <table className="w-full text-xs">
-            <thead className="bg-blue-100/60 dark:bg-blue-900/30 text-blue-900 dark:text-blue-200">
-              <tr>
-                <th className="px-3 py-2 text-left font-semibold">Role</th>
-                <th className="px-3 py-2 text-left font-semibold">Email</th>
-                <th className="px-3 py-2 text-left font-semibold">Password</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-blue-200 dark:divide-blue-800">
-              {DEMO_CREDENTIALS.map((cred) => (
-                <tr
-                  key={cred.email}
-                  onClick={() => fillDemo(cred)}
-                  className="cursor-pointer transition-colors hover:bg-blue-100/50 dark:hover:bg-blue-900/30"
-                >
-                  <td className="px-3 py-2 font-medium text-blue-900 dark:text-blue-100">
-                    {cred.role}
-                  </td>
-                  <td className="px-3 py-2 text-blue-800 dark:text-blue-200">
-                    {cred.email}
-                  </td>
-                  <td className="px-3 py-2 text-blue-800 dark:text-blue-200 font-mono">
-                    {cred.password}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
     </div>
   );
 };

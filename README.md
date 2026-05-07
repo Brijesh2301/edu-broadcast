@@ -21,11 +21,7 @@ on a public channel page.
 | Lucide React     | latest  | Icon library                  |
 | Sonner           | 1       | Toast notifications           |
 
-> **Notes on pinned versions:** Tailwind is pinned to v3 instead of v4
-> because v4 requires a different PostCSS toolchain
-> (`@tailwindcss/postcss` package). React Hook Form is pinned to v7
-> because v8 is alpha-only on npm at the time of writing. The APIs used
-> in this codebase work identically across both pairs of versions.
+>
 
 ## Features
 
@@ -200,10 +196,14 @@ response.
 
 ## Live Demo
 
-_Add deployment link after deploying to Vercel/Netlify._
+https://edu-broadcast-sigma.vercel.app/ 
+
+##Public Live Page
+
+https://edu-broadcast-sigma.vercel.app/live/t1  // For Teacher t1
+https://edu-broadcast-sigma.vercel.app/live/t2  //For Teacher t2
+
 
 ## Documentation
 
-For deeper architectural notes — auth flow, state-management layering,
-the three-layer service approach, and the assumptions made — see
-[`Frontend-notes.txt`](./Frontend-notes.txt).
+
