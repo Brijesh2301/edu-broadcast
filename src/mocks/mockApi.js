@@ -1,6 +1,6 @@
 import { MOCK_USERS, MOCK_CONTENTS } from './mockData';
 
-const DELAY = 600;
+const DELAY = 400;
 const STORAGE_KEY = 'edu_contents';
 
 const delay = () => new Promise((r) => setTimeout(r, DELAY));
