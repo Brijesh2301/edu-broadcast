@@ -82,7 +82,7 @@ const buildContent = (
     rejectionReason,
     createdAt: daysAgo(createdDaysAgo),
     startTime,
-    endTime: addHours(startTime, 2),
+    endTime: addHours(startTime, 8),
     rotationDuration,
     description,
   };
